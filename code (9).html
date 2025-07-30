@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FierroFit | Coming Soon</title>
+    <link rel="icon" href="FierroFit__Train_with_Passion-removebg-preview.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Montserrat', sans-serif;
+            scroll-behavior: smooth;
+        }
+        
+        :root {
+            --primary: #111111;
+            --secondary: #ffffff;
+            --accent: #e30613;
+        }
+        
+        .page-transition {
+            transition: transform 0.6s ease-out, opacity 0.6s ease-out;
+        }
+        
+        .hidden-page {
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        
+        .active-page {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+        
+        .nav-item::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s;
+        }
+        
+        .nav-item:hover::after {
+            width: 100%;
+        }
+        
+        /* Testimonial slider styles */
+        .slider-container {
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch; /* For smooth scrolling on iOS */
+        }
+        
+        .slider-item {
+            scroll-snap-align: center;
+            flex-shrink: 0; /* Prevent items from shrinking */
+        }
+
+        /* Hide scrollbar for testimonial slider */
+        .slider-container::-webkit-scrollbar {
+            display: none;
+        }
+        .slider-container {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Moving Top Bar */
+        .moving-bar {
+            white-space: nowrap;
+            overflow: hidden;
+            box-sizing: border-box;
+            position: relative;
+            width: 100%;
+        }
+
+        .moving-bar-content {
+            display: inline-block;
+            padding-left: 100%; /* Start text off-screen to the right */
+            animation: marquee 15s linear infinite; /* Adjust duration for speed */
+        }
+
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.8); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #1a1a1a; /* Dark background for modal */
+            margin: auto;
+            padding: 40px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+            text-align: center;
+            color: white;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #e30613;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Shop Dropdown */
+        .dropdown:hover .dropdown-menu {
+            display: block;
+        }
+
+        /* Product Detail Page specific styles */
+        .size-option, .color-option {
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease-in-out;
+        }
+        .size-option.selected, .color-option.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent);
+        }
+        .color-option.selected {
+            transform: scale(1.1);
+        }
+        .size-option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 relative overflow-x-hidden">
+    <!-- Moving Top Bar -->
+    <div class="bg-red-600 text-white text-sm py-2 fixed top-0 left-0 w-full z-50 moving-bar">
+        <div class="moving-bar-content font-bold uppercase">
+            A NEW DROP EVERY MONTH! STAY TUNED FOR THE LATEST ITALIAN GYM WEAR. &bull; FREE SHIPPING ON ALL ORDERS! &bull; JOIN THE FIERROFIT MOVEMENT! &bull;
+        </div>
+    </div>
+
+    <!-- Canvas for 3D background animation -->
+    <div id="canvas-container"></div>
+    
+    <!-- Navigation -->
+    <nav class="bg-black text-white shadow-lg fixed w-full z-50" style="top: 36px;"> <!-- Adjusted top for moving bar -->
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="#" class="flex items-center" onclick="showPage('home')">
+                        <span class="text-2xl font-bold text-white">FIERRO<span class="text-red-600">FIT</span></span>
+                    </a>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#" class="nav-item text-white hover:text-red-500 transition duration-300" onclick="showPage('home')">HOME</a>
+                    <a href="#" class="nav-item text-white hover:text-red-500 transition duration-300" onclick="showPage('about')">ABOUT</a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Cart, Search, Account buttons removed for teaser site -->
+                    <button class="md:hidden p-2 text-white hover:text-red-500 transition duration-300" id="menu-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu -->
+        <div class="md:hidden bg-black hidden" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="#" class="block px-3 py-2 text-white hover:text-red-500 transition duration-300" onclick="showPage('home'); toggleMenu()">HOME</a>
+                <a href="#" class="block px-3 py-2 text-white hover:text-red-500 transition duration-300" onclick="showPage('about'); toggleMenu()">ABOUT</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Home Page -->
+    <div id="home" class="page-transition active-page min-h-screen pt-16"> <!-- Adjusted pt for moving bar -->
+        <!-- Hero Section -->
+        <section class="relative h-screen flex items-center justify-center bg-black text-white overflow-hidden">
+            <div class="absolute inset-0 bg-black opacity-70 z-10"></div>
+            <video autoplay muted loop class="absolute inset-0 w-full h-full object-cover z-0">
+                <source src="Coming Soon.mp4" type="video/mp4">
+            </video>
+            
+            <div class="container mx-auto px-4 z-20 text-center">
+                <h1 class="text-5xl md:text-7xl font-bold mb-6">FORGE YOUR <span class="text-red-600">LEGACY</span></h1>
+                <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Premium Italian gym apparel for those who train with passion. Designed in Italy, tested in gyms worldwide.</p>
+                <div class="flex justify-center space-x-4">
+                    <button class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition duration-300 transform hover:scale-105" onclick="alert('Coming Soon!');">
+                        EXPLORE
+                    </button>
+                    <button class="bg-transparent border-2 border-white hover:bg-white hover:text-black text-white px-8 py-3 rounded-full font-bold transition duration-300 transform hover:scale-105" onclick="showPage('about')">
+                        LEARN MORE
+                    </button>
+                </div>
+
+                <!-- New Merch Drop Timer and Preorder Section -->
+                <div class="mt-12 bg-gray-900 bg-opacity-80 p-6 rounded-lg max-w-md mx-auto border-2 border-red-600">
+                    <p class="text-xl md:text-2xl font-bold text-red-500 mb-4">SOMTHING BIG COMING SOON!</p>
+                    <div id="countdown-timer" class="text-4xl md:text-5xl font-extrabold text-white mb-6">
+                        00D 00H 00M 00S
+                    </div>
+                    <p class="text-lg text-gray-300 mb-6">Be ready for the next FierroFit collection!</p>
+                    <div class="flex flex-col space-y-4">
+                        <button class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition duration-300 transform hover:scale-105" onclick="alert('Preorder functionality coming soon!');">
+                            PREORDER NOW
+                        </button>
+                        <button class="bg-transparent border-2 border-white hover:bg-white hover:text-black text-white px-8 py-3 rounded-full font-bold transition duration-300 transform hover:scale-105" onclick="alert('You will be notified when it drops!');">
+                            NOTIFY ME WHEN IT DROPS
+                        </button>
+                    </div>
+                </div>
+                <!-- End New Merch Drop Timer and Preorder Section -->
+
+            </div>
+        </section>
+        
+        <!-- Testimonials (Temporarily Removed) -->
+        <!--
+        <section class="py-20 bg-black text-white">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold mb-12 text-center">WHAT OUR CLIENTS SAY</h2>
+                
+                <div class="testimonial-slider">
+                    <div class="testimonial-track flex space-x-4 pb-2" id="testimonial-track">
+                        <div class="testimonial-slide bg-gray-900 p-8 rounded-xl min-w-[80%] md:min-w-[40%]">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 rounded-full overflow-hidden mr-4">
+                                    <img src="https://placehold.co/100x100" alt="Portrait of Marco, male bodybuilder with short beard" class="w-full h-full object-cover">
+                                </div>
+                                <div>
+                                    <h4 class="font-bold">Marco R.</h4>
+                                    <p class="text-gray-400">Professional Bodybuilder</p>
+                                </div>
+                            </div>
+                            <p class="italic">"The FIERRO tank tops are my favorite for training. The material is durable and the fit is perfect for my physique. I get compliments every time I wear them."</p>
+                        </div>
+                        
+                        <div class="testimonial-slide bg-gray-900 p-8 rounded-xl min-w-[80%] md:min-w-[40%]">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 rounded-full overflow-hidden mr-4">
+                                    <img src="https://placehold.co/100x100" alt="Portrait of Sofia, female fitness influencer smiling" class="w-full h-full object-cover">
+                                </div>
+                                <div>
+                                    <h4 class="font-bold">Sofia L.</h4>
+                                    <p class="text-gray-400">Fitness Influencer</p>
+                                </div>
+                            </div>
+                            <p class="italic">"I was skeptical about leggings that don't roll down during squats - but FIERRO nailed it! These are my go-to for all my lower body workouts."</p>
+                        </div>
+                        
+                        <div class="testimonial-slide bg-gray-900 p-8 rounded-xl min-w-[80%] md:min-w-[40%]">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 rounded-full overflow-hidden mr-4">
+                                    <img src="https://placehold.co/100x100" alt="Portrait of Antonio, gym owner with muscles and tattoos" class="w-full h-full object-cover">
+                                </div>
+                                <div>
+                                    <h4 class="font-bold">Antonio G.</h4>
+                                    <p class="text-gray-400">Gym Owner</p>
+                                </div>
+                            </div>
+                            <p class="italic">"As a gym owner, I see hundreds of brands come through my doors. FIERRO stands out for its quality and Italian design. My members love it!"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        -->
+        
+        <!-- Newsletter -->
+        <section class="py-20 bg-red-600 text-white">
+            <div class="container mx-auto px-4 text-center">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">JOIN THE FIERRO MOVEMENT</h2>
+                <p class="mb-8 max-w-2xl mx-auto">Be the first to know about new releases, exclusive drops, and special offers. Sign up for our newsletter.</p>
+                
+                <form class="flex flex-col md:flex-row justify-center max-w-lg mx-auto gap-4">
+                    <input type="email" placeholder="Your Email" class="px-4 py-3 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-white w-full">
+                    <button type="submit" class="bg-black text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-900 transition duration-300">
+                        SUBSCRIBE
+                    </button>
+                </form>
+                
+                <p class="text-sm mt-4">We respect your privacy. Unsubscribe at any time.</p>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Shop Page (Hidden) -->
+    <div id="shop" class="page-transition hidden-page pt-16"></div>
+    
+    <!-- New Drops Page (Hidden) -->
+    <div id="new-drops" class="page-transition hidden-page pt-16"></div>
+
+    <!-- Articles Page (Hidden) -->
+    <div id="articles" class="page-transition hidden-page pt-16"></div>
+
+    <!-- About Page -->
+    <div id="about" class="page-transition hidden-page pt-16"> <!-- Adjusted pt for moving bar -->
+        <section class="pt-16 pb-20 min-h-screen bg-black text-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-16">
+                    <h1 class="text-3xl md:text-5xl font-bold mb-4">ABOUT FIERROFIT</h1>
+                    <p class="text-xl md:text-2xl max-w-3xl mx-auto">Passion, Performance, Italian Craftsmanship.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <img src="FierroFit_ Train with Passion.png" alt="FIERROFIT factory or design studio" class="rounded-xl shadow-lg">
+                    </div>
+                    <div class="order-1 md:order-2">
+                        <h2 class="text-3xl font-bold mb-4">OUR STORY</h2>
+                        <p class="text-lg mb-6 text-gray-300">
+                            Born from the heart of Italy, FierroFit was founded by a team of dedicated athletes and fashion designers with a singular vision: to create gym wear that embodies the strength and style of Italian heritage. We believe that what you wear should empower your performance and reflect your dedication.
+                        </p>
+                        <p class="text-lg text-gray-300">
+                            Every stitch, every fabric choice, every design element is meticulously crafted to meet the demands of the most intense workouts, while ensuring you look and feel your best. FierroFit is more than just clothing; it's a commitment to excellence, a celebration of the "Fierro" (iron) spirit within every athlete.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20 text-center">
+                    <div class="p-6 bg-gray-900 rounded-xl shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 002 12c0 2.757 1.125 5.22 2.938 7.071L12 22l7.062-2.929A12.001 12.001 0 0022 12c0-2.757-1.125-5.22-2.938-7.071z" />
+                        </svg>
+                        <h3 class="font-bold text-xl mb-2">QUALITY FIRST</h3>
+                        <p class="text-gray-400">Premium fabrics and rigorous testing ensure durability and performance.</p>
+                    </div>
+                    <div class="p-6 bg-gray-900 rounded-xl shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h18M3 16h18M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <h3 class="font-bold text-xl mb-2">ITALIAN DESIGN</h3>
+                        <p class="text-gray-400">Sleek aesthetics and functional design inspired by Italy's fashion.</p>
+                    </div>
+                    <div class="p-6 bg-gray-900 rounded-xl shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <h3 class="font-bold text-xl mb-2">PERFORMANCE DRIVEN</h3>
+                        <p class="text-gray-400">Engineered to enhance your workouts and support every movement.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Cart Page (Hidden) -->
+    <div id="cart" class="page-transition hidden-page pt-16"></div>
+
+    <!-- Search Page (Hidden) -->
+    <div id="search" class="page-transition hidden-page pt-16"></div>
+
+    <!-- Account Page (Hidden) -->
+    <div id="account" class="page-transition hidden-page pt-16"></div>
+
+    <!-- Product Detail Page (Hidden) -->
+    <div id="product-detail" class="page-transition hidden-page pt-16"></div>
+
+    <!-- Footer -->
+    <footer class="bg-black text-white py-12">
+        <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+                <h3 class="text-2xl font-bold text-white mb-4">FIERRO<span class="text-red-600">FIT</span></h3>
+                <p class="text-gray-400 text-sm">Premium Italian Gym Wear. Forge Your Legacy.</p>
+                <div class="flex space-x-4 mt-4">
+                    <a href="#" class="text-gray-400 hover:text-red-600 transition duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.779 1.673 4.927 4.927.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.85-.148 3.252-1.673 4.779-4.927 4.927-1.264.058-1.644.069-4.85.069-3.204 0-3.584-.012-4.85-.069-3.252-.148-4.779-1.673-4.927-4.927-.058-1.265-.069-1.645-.069-4.849 0-3.205.012-3.584.069-4.85.148-3.252 1.673-4.779 4.927-4.927 1.264-.057 1.644-.069 4.85-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.073 4.948.073 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.689-.073-4.948-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4s1.791-4 4-4 4 1.79 4 4-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-red-600 transition duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.588-1.333h2.412v-5h-3.5c-4.027 0-5 2.365-5 6.567v2.433z"/></svg>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-red-600 transition duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.403 0-6.162 2.759-6.162 6.162 0 .483.055.953.15 1.404-5.13-.258-9.668-2.724-12.757-6.468-.528.907-.833 1.97-.833 3.109 0 2.144 1.089 4.049 2.75 5.159-.959-.031-1.85-.297-2.631-.729v.079c0 2.98 2.127 5.472 4.923 6.04-.518.142-1.063.229-1.62.229-.398 0-.78-.038-1.153-.11.777 2.43 3.02 4.21 5.681 4.269-2.094 1.64-4.74 2.62-7.61 2.62-.495 0-.98-.029-1.458-.085 2.987 1.905 6.504 3.015 10.287 3.015 12.36 0 19.14-10.296 19.14-19.14 0-.292-.006-.58-.019-.868.839-.605 1.569-1.364 2.14-2.228z"/></svg>
+                    </a>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-4">SHOP</h3>
+                <ul class="space-y-2 text-gray-400 text-sm">
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="alert('Coming Soon!');">All Products</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="alert('Coming Soon!');">Men's</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="alert('Coming Soon!');">Women's</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="alert('Coming Soon!');">New Arrivals</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="alert('Coming Soon!');">Sale</a></li>
+                </ul>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-4">CUSTOMER SERVICE</h3>
+                <ul class="space-y-2 text-gray-400 text-sm">
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">Contact Us</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">Shipping & Returns</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">FAQ</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">Size Guide</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">Privacy Policy</a></li>
+                </ul>
+            </div>
+            
+            <div>
+                <h3 class="font-bold text-lg mb-4">FIERROFIT</h3>
+                <ul class="space-y-2 text-gray-400 text-sm">
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="showPage('about')">About Us</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300" onclick="alert('Coming Soon!');">Articles & Blog</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">Careers</a></li>
+                    <li><a href="#" class="hover:text-red-600 transition duration-300">Affiliates</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm mt-12">
+            &copy; 2026 FierroFit. All rights reserved. Designed with passion in Italy.
+        </div>
+    </footer>
+
+    <!-- Welcome Modal -->
+    <div id="welcome-modal" class="modal flex">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <img src="Megaphone-4.png" alt="Welcome Icon" class="mx-auto mb-6 rounded-full">
+            <h2 class="text-4xl font-bold text-red-600 mb-4">WELCOME TO FIERROFIT!</h2>
+            <p class="text-xl mb-6">Our new collection is dropping soon. Stay tuned for premium Italian gym wear!</p>
+            <button class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition duration-300 transform hover:scale-105" onclick="closeModal();">
+                EXPLORE THE TEASER
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Page Navigation Logic ---
+        function showPage(pageId) {
+            const pages = document.querySelectorAll('.page-transition');
+            pages.forEach(page => {
+                page.classList.remove('active-page');
+                page.classList.add('hidden-page');
+            });
+            document.getElementById(pageId).classList.remove('hidden-page');
+            document.getElementById(pageId).classList.add('active-page');
+            window.scrollTo(0, 0); // Scroll to top when changing page
+        }
+
+        // --- Mobile Menu Toggle ---
+        const menuToggle = document.getElementById('menu-toggle');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        function toggleMenu() {
+            mobileMenu.classList.toggle('hidden');
+        }
+        menuToggle.addEventListener('click', toggleMenu);
+
+        // --- 3D Background Animation (Three.js) ---
+        let scene, camera, renderer, particles;
+
+        function init3DBackground() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            // Particles
+            const particleCount = 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const color1 = new THREE.Color(0xffffff); // White
+            const color2 = new THREE.Color(0xe30613); // Red
+
+            for (let i = 0; i < particleCount; i++) {
+                const x = (Math.random() - 0.5) * 20;
+                const y = (Math.random() - 0.5) * 20;
+                const z = (Math.random() - 0.5) * 20;
+                positions.push(x, y, z);
+
+                // Randomly assign white or red color
+                const color = Math.random() > 0.5 ? color1 : color2;
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.05,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        function animate3DBackground() {
+            requestAnimationFrame(animate3DBackground);
+
+            if (particles) {
+                particles.rotation.x += 0.0005;
+                particles.rotation.y += 0.0008;
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize3DBackground() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', onWindowResize3DBackground);
+        init3DBackground();
+        animate3DBackground();
+
+        // --- Testimonial Auto-Scroll Loop (Removed) ---
+        // const testimonialTrack = document.getElementById('testimonial-track');
+        // let testimonialScrollInterval;
+        // const testimonialScrollSpeed = 50; // milliseconds per scroll step
+        // const testimonialScrollAmount = 1; // pixels per scroll step
+
+        // function startAutoScroll() {
+        //     // Clear any existing clones to prevent duplicates on re-render
+        //     const originalTestimonials = Array.from(testimonialTrack.children).filter((_, index) => index < 3); // Assuming 3 original testimonials
+        //     testimonialTrack.innerHTML = ''; // Clear track
+        //     originalTestimonials.forEach(testimonial => testimonialTrack.appendChild(testimonial)); // Re-add originals
+
+        //     // Duplicate testimonials to create a seamless loop
+        //     const testimonials = Array.from(testimonialTrack.children);
+        //     testimonials.forEach(testimonial => {
+        //         const clone = testimonial.cloneNode(true);
+        //         testimonialTrack.appendChild(clone);
+        //     });
+
+        //     let currentScroll = 0;
+        //     // Calculate the width of one full set of original testimonials
+        //     // This needs to be dynamic based on actual rendered width
+        //     let singleSetWidth = 0;
+        //     if (testimonials.length > 0) {
+        //         singleSetWidth = testimonials[0].offsetWidth * testimonials.length + (testimonials.length - 1) * 16; // 16px for space-x-4
+        //     }
+            
+        //     // Adjust track width to accommodate clones for smooth looping
+        //     testimonialTrack.style.width = `${singleSetWidth * 2}px`; // Original + one clone set
+
+        //     clearInterval(testimonialScrollInterval); // Clear any previous interval
+        //     testimonialScrollInterval = setInterval(() => {
+        //         currentScroll += testimonialScrollAmount;
+        //         // If we've scrolled past the original set, reset to the beginning of the cloned set
+        //         if (currentScroll >= singleSetWidth) {
+        //             currentScroll = 0; 
+        //         }
+        //         testimonialTrack.style.transform = `translateX(-${currentScroll}px)`;
+        //     }, testimonialScrollSpeed);
+        // }
+
+        // // Stop auto-scroll on hover (optional)
+        // testimonialTrack.addEventListener('mouseenter', () => clearInterval(testimonialScrollInterval));
+        // testimonialTrack.addEventListener('mouseleave', startAutoScroll);
+
+        // --- Persistent Countdown Timer for New Merch Drop ---
+        const COUNTDOWN_TARGET_KEY = 'fierrofit_merch_drop_target';
+        const DEFAULT_DROP_DAYS = 7; // Set the drop to 7 days from now if not already set
+
+        function startPersistentCountdown() {
+            let targetTime = localStorage.getItem(COUNTDOWN_TARGET_KEY);
+
+            if (!targetTime) {
+                // If no target time is stored, set it for DEFAULT_DROP_DAYS from now
+                const now = new Date();
+                const newTarget = new Date(now.getTime() + DEFAULT_DROP_DAYS * 24 * 60 * 60 * 1000);
+                targetTime = newTarget.getTime();
+                localStorage.setItem(COUNTDOWN_TARGET_KEY, targetTime);
+            } else {
+                targetTime = parseInt(targetTime);
+                // If the stored time is in the past, reset it for DEFAULT_DROP_DAYS from now
+                if (targetTime < new Date().getTime()) {
+                    const now = new Date();
+                    const newTarget = new Date(now.getTime() + DEFAULT_DROP_DAYS * 24 * 60 * 60 * 1000);
+                    targetTime = newTarget.getTime();
+                    localStorage.setItem(COUNTDOWN_TARGET_KEY, targetTime);
+                }
+            }
+
+            const countdownDisplay = document.getElementById('countdown-timer');
+
+            const updateCountdown = setInterval(function () {
+                const now = new Date().getTime();
+                const distance = targetTime - now;
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                if (distance < 0) {
+                    clearInterval(updateCountdown);
+                    countdownDisplay.textContent = "00D 00H 00M 00S";
+                    document.querySelector('#countdown-timer').previousElementSibling.textContent = "NEW MERCH IS HERE!";
+                    document.querySelector('#countdown-timer').nextElementSibling.textContent = "Shop the latest collection now!";
+                    document.querySelector('.flex-col.space-y-4').innerHTML = `
+                        <button class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition duration-300 transform hover:scale-105" onclick="alert('Shop is coming soon!');">
+                            SHOP NEW DROPS!
+                        </button>
+                    `;
+                    // Optionally reset the timer for the next drop after it expires
+                    // localStorage.removeItem(COUNTDOWN_TARGET_KEY); 
+                } else {
+                    countdownDisplay.textContent = 
+                        `${days.toString().padStart(2, '0')}D ` +
+                        `${hours.toString().padStart(2, '0')}H ` +
+                        `${minutes.toString().padStart(2, '0')}M ` +
+                        `${seconds.toString().padStart(2, '0')}S`;
+                }
+            }, 1000);
+        }
+
+        // --- Welcome Modal Logic ---
+        const welcomeModal = document.getElementById('welcome-modal');
+        const HAS_VISITED_KEY = 'fierrofit_has_visited';
+
+        function openModal() {
+            if (!localStorage.getItem(HAS_VISITED_KEY)) {
+                welcomeModal.style.display = 'flex';
+                localStorage.setItem(HAS_VISITED_KEY, 'true'); // Set flag after showing
+            }
+        }
+
+        function closeModal() {
+            welcomeModal.style.display = 'none';
+        }
+
+        // Close modal if user clicks outside of it
+        window.addEventListener('click', (event) => {
+            if (event.target === welcomeModal) {
+                closeModal();
+            }
+        });
+
+        // --- Initial Loads ---
+        window.addEventListener('load', () => {
+            // startAutoScroll(); // Testimonial auto-scroll is removed
+            startPersistentCountdown(); // Start the persistent countdown timer
+            openModal(); // Show welcome modal on first visit
+        });
+
+    </script>
+</body>
+</html>
